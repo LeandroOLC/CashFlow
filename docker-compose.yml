@@ -1,0 +1,147 @@
+version: '3.9'
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: cashflow-sqlserver
+    environment:
+      SA_PASSWORD: "CashFlow@123"
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: "Express"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "CashFlow@123" -Q "SELECT 1" -b -o /dev/null
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - cashflow-network
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: cashflow-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - cashflow-network
+
+
+  web:
+    build:
+      context: .
+      dockerfile: src/CashFlow.WebApp/Dockerfile
+    container_name: cashflow-web
+    ports:
+      - "5000:8080"
+    environment:
+      - ApiEndpoints__Auth=http://auth-service:8080
+      - ApiEndpoints__Transactions=http://transactions-service:8080
+      - ApiEndpoints__Consolidation=http://consolidation-service:8080
+      - ASPNETCORE_ENVIRONMENT=Production
+    depends_on:
+      - auth-service
+      - transactions-service
+      - consolidation-service
+    networks:
+      - cashflow-network
+    restart: unless-stopped
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: src/CashFlow.Auth.API/Dockerfile
+    container_name: cashflow-auth
+    ports:
+      - "5001:8080"
+    environment:
+      - ConnectionStrings__AuthDb=Server=sqlserver;Database=AuthDb;User Id=sa;Password=CashFlow@123;TrustServerCertificate=True;
+      - Jwt__Secret=CashFlowSuperSecretKey2025MustBe32CharsLong!
+      - Jwt__Issuer=CashFlow.Auth
+      - Jwt__Audience=CashFlow.Services
+      - Jwt__ExpiresInHours=1
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Swagger__Enabled=true
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    networks:
+      - cashflow-network
+    restart: unless-stopped
+
+  transactions-service:
+    build:
+      context: .
+      dockerfile: src/CashFlow.Transactions.API/Dockerfile
+    container_name: cashflow-transactions
+    ports:
+      - "5002:8080"
+    environment:
+      - ConnectionStrings__TransactionDb=Server=sqlserver;Database=TransactionDb;User Id=sa;Password=CashFlow@123;TrustServerCertificate=True;
+      - Jwt__Secret=CashFlowSuperSecretKey2025MustBe32CharsLong!
+      - Jwt__Issuer=CashFlow.Auth
+      - Jwt__Audience=CashFlow.Services
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Port=5672
+      - RabbitMQ__Username=guest
+      - RabbitMQ__Password=guest
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Swagger__Enabled=true
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - cashflow-network
+    restart: unless-stopped
+
+  consolidation-service:
+    build:
+      context: .
+      dockerfile: src/CashFlow.Consolidation.API/Dockerfile
+    container_name: cashflow-consolidation
+    ports:
+      - "5003:8080"
+    environment:
+      - ConnectionStrings__ConsolidationDb=Server=sqlserver;Database=ConsolidationDb;User Id=sa;Password=CashFlow@123;TrustServerCertificate=True;
+      - Jwt__Secret=CashFlowSuperSecretKey2025MustBe32CharsLong!
+      - Jwt__Issuer=CashFlow.Auth
+      - Jwt__Audience=CashFlow.Services
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Port=5672
+      - RabbitMQ__Username=guest
+      - RabbitMQ__Password=guest
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Swagger__Enabled=true
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - cashflow-network
+    restart: unless-stopped
+
+volumes:
+  sqlserver_data:
+  rabbitmq_data:
+
+networks:
+  cashflow-network:
+    driver: bridge

@@ -1,0 +1,17 @@
+<MudNavMenu>
+@*     <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
+    <MudNavLink Href="counter" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Add">Counter</MudNavLink>
+    <MudNavLink Href="weather" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.List">Weather</MudNavLink> *@
+
+    <MudNavLink Href="/" Match="NavLinkMatch.All"
+                Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
+    <MudNavLink Href="/transactions"
+                Icon="@Icons.Material.Filled.SwapHoriz">Lançamentos</MudNavLink>
+    <MudNavLink Href="/consolidation"
+                Icon="@Icons.Material.Filled.BarChart">Consolidado</MudNavLink>
+    <MudNavLink Href="/categories"
+                Icon="@Icons.Material.Filled.Category">Categorias</MudNavLink>
+    <MudDivider Class="my-2" />
+@*     <MudNavLink Icon="@Icons.Material.Filled.Logout"
+                OnClick="LogoutAsync">Sair</MudNavLink> *@
+</MudNavMenu>

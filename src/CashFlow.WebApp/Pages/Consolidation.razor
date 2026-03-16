@@ -1,0 +1,215 @@
+@page "/consolidation"
+@inject IConsolidationService ConsolidationSvc
+@inject ISnackbar Snackbar
+
+<div class="mb-1">
+    <MudText Typo="Typo.h5"><b>Consolidado Diário</b></MudText>
+    <MudText Typo="Typo.body2" Color="Color.Secondary">Saldos consolidados por período</MudText>
+</div>
+
+<!-- Filtro de período -->
+<MudPaper Elevation="1" Class="pa-4 mb-4 rounded-lg">
+    <MudGrid>
+        <MudItem xs="12" sm="4">
+            <MudDatePicker @bind-Date="_start" Label="Data inicial" Variant="Variant.Outlined"
+                           DateFormat="dd/MM/yyyy" Culture="_ptBR" />
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudDatePicker @bind-Date="_end" Label="Data final" Variant="Variant.Outlined"
+                           DateFormat="dd/MM/yyyy" Culture="_ptBR" />
+        </MudItem>
+        <MudItem xs="12" sm="4" Class="d-flex align-end gap-2">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                       StartIcon="@Icons.Material.Filled.Search"
+                       OnClick="SearchAsync" Disabled="!_ready">Consultar</MudButton>
+            <MudButton Variant="Variant.Outlined" OnClick="LoadCurrentMonthAsync"
+                       Disabled="!_ready" StartIcon="@Icons.Material.Filled.CalendarMonth">
+                Mês atual
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (!_ready || _loading)
+{
+    <div class="d-flex justify-center mt-12">
+        <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+    </div>
+}
+else
+{
+    <!-- KPI do período -->
+    @if (_items.Any())
+    {
+        var tc = _items.Sum(b => b.TotalCredits);
+        var td = _items.Sum(b => b.TotalDebits);
+        var tf = tc - td;
+
+        <MudGrid Class="mb-4">
+            <MudItem xs="12" sm="4">
+                <MudPaper Elevation="2" Class="pa-4 rounded-lg" Style="border-left:4px solid #2E7D32">
+                    <MudText Typo="Typo.overline" Color="Color.Success">RECEITAS DO PERÍODO</MudText>
+                    <MudText Typo="Typo.h5" Style="color:#2E7D32;font-weight:700">
+                        @tc.ToString("C2", _ptBR)
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@_items.Count dias com dados</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudPaper Elevation="2" Class="pa-4 rounded-lg" Style="border-left:4px solid #C62828">
+                    <MudText Typo="Typo.overline" Color="Color.Error">DESPESAS DO PERÍODO</MudText>
+                    <MudText Typo="Typo.h5" Style="color:#C62828;font-weight:700">
+                        @td.ToString("C2", _ptBR)
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Média: @((td / _items.Count).ToString("C2", _ptBR))/dia
+                    </MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudPaper Elevation="2" Class="pa-4 rounded-lg"
+                          Style="@($"border-left:4px solid {(tf >= 0 ? "#1565C0" : "#E65100")}")">
+                    <MudText Typo="Typo.overline">SALDO DO PERÍODO</MudText>
+                    <MudText Typo="Typo.h5"
+                             Style="@($"font-weight:700;color:{(tf >= 0 ? "#1565C0" : "#E65100")}")">
+                        @tf.ToString("C2", _ptBR)
+                    </MudText>
+                    <MudChip T="string" Size="Size.Small"
+                             Color="@(tf >= 0 ? Color.Success : Color.Error)" Class="mt-1">
+                        @(tf >= 0 ? "Período positivo" : "Período negativo")
+                    </MudChip>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    }
+
+    <!-- Tabela detalhada -->
+    <MudPaper Elevation="2" Class="rounded-lg">
+        <MudTable Items="_items" Dense="true" Hover="true" Elevation="0"
+                  Striped="true" Breakpoint="Breakpoint.Sm">
+            <HeaderContent>
+                <MudTh><MudTableSortLabel SortBy="new Func<DailyBalanceDto,object>(x=>x.Date)">
+                    Data
+                </MudTableSortLabel></MudTh>
+                <MudTh Style="text-align:right">Receitas</MudTh>
+                <MudTh Style="text-align:right">Despesas</MudTh>
+                <MudTh Style="text-align:right">Saldo do Dia</MudTh>
+                <MudTh Style="text-align:center">Status</MudTh>
+                <MudTh>Atualizado</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Data"><b>@context.Date.ToString("dd/MM/yyyy")</b></MudTd>
+                <MudTd DataLabel="Receitas" Style="text-align:right;color:#2E7D32;font-weight:600">
+                    +@context.TotalCredits.ToString("C2", _ptBR)
+                </MudTd>
+                <MudTd DataLabel="Despesas" Style="text-align:right;color:#C62828;font-weight:600">
+                    -@context.TotalDebits.ToString("C2", _ptBR)
+                </MudTd>
+                <MudTd DataLabel="Saldo" Style="text-align:right">
+                    <MudText Style="@($"font-weight:700;color:{(context.FinalBalance >= 0 ? "#1565C0" : "#E65100")}")">
+                        @context.FinalBalance.ToString("C2", _ptBR)
+                    </MudText>
+                </MudTd>
+                <MudTd DataLabel="Status" Style="text-align:center">
+                    <MudChip T="string" Size="Size.Small"
+                             Color="@(context.FinalBalance >= 0 ? Color.Success : Color.Error)"
+                             Icon="@(context.FinalBalance >= 0
+                                    ? Icons.Material.Filled.TrendingUp
+                                    : Icons.Material.Filled.TrendingDown)">
+                        @(context.FinalBalance >= 0 ? "Positivo" : "Negativo")
+                    </MudChip>
+                </MudTd>
+                <MudTd DataLabel="Atualizado">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        @context.LastUpdated.ToLocalTime().ToString("dd/MM HH:mm")
+                    </MudText>
+                </MudTd>
+            </RowTemplate>
+            <FooterContent>
+                @if (_items.Count > 1)
+                {
+                    <MudTFootRow>
+                        <MudTd><b>TOTAL</b></MudTd>
+                        <MudTd Style="text-align:right;color:#2E7D32">
+                            <b>+@_items.Sum(b => b.TotalCredits).ToString("C2", _ptBR)</b>
+                        </MudTd>
+                        <MudTd Style="text-align:right;color:#C62828">
+                            <b>-@_items.Sum(b => b.TotalDebits).ToString("C2", _ptBR)</b>
+                        </MudTd>
+                        @{var tf = _items.Sum(b => b.FinalBalance);}
+                        <MudTd Style="@($"text-align:right;color:{(tf >= 0 ? "#1565C0" : "#E65100")}")">
+                            <b>@tf.ToString("C2", _ptBR)</b>
+                        </MudTd>
+                        <MudTd /><MudTd />
+                    </MudTFootRow>
+                }
+            </FooterContent>
+            <NoRecordsContent>
+                <div class="d-flex flex-column align-center pa-10">
+                    <MudIcon Icon="@Icons.Material.Filled.EventBusy" Size="Size.Large" Color="Color.Secondary" />
+                    <MudText Class="mt-2" Color="Color.Secondary">
+                        Nenhum consolidado para o período selecionado
+                    </MudText>
+                </div>
+            </NoRecordsContent>
+        </MudTable>
+
+        @if (_totalPages > 1)
+        {
+            <div class="d-flex justify-center pa-4">
+                <MudPagination Count="_totalPages" Selected="_page"
+                               SelectedChanged="OnPageChangedAsync"
+                               Color="Color.Primary" BoundaryCount="1" MiddleCount="3" />
+            </div>
+        }
+    </MudPaper>
+}
+
+@code {
+    private bool   _ready;
+    private bool   _loading;
+    private List<DailyBalanceDto> _items = [];
+    private int       _page       = 1;
+    private const int _pageSize   = 31;
+    private int       _totalPages = 1;
+    private DateTime? _start;
+    private DateTime? _end;
+
+    private static readonly System.Globalization.CultureInfo _ptBR =
+        System.Globalization.CultureInfo.GetCultureInfo("pt-BR");
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        _ready = true;
+        await LoadCurrentMonthAsync();
+    }
+
+    private async Task LoadCurrentMonthAsync()
+    {
+        var now = DateTime.Today;
+        _start = new DateTime(now.Year, now.Month, 1);
+        _end   = _start.Value.AddMonths(1).AddDays(-1);
+        _page  = 1;
+        await SearchAsync();
+    }
+
+    private async Task SearchAsync()
+    {
+        if (_start is null || _end is null)
+        { Snackbar.Add("Selecione o período.", Severity.Warning); return; }
+
+        if (_start > _end)
+        { Snackbar.Add("Data inicial deve ser anterior à final.", Severity.Warning); return; }
+
+        _loading = true; StateHasChanged();
+
+        var result = await ConsolidationSvc.GetByPeriodAsync(_start.Value, _end.Value, _page, _pageSize);
+        _items      = result?.Items.OrderByDescending(b => b.Date).ToList() ?? [];
+        _totalPages = result?.TotalPages ?? 1;
+
+        _loading = false; StateHasChanged();
+    }
+
+    private async Task OnPageChangedAsync(int p) { _page = p; await SearchAsync(); }
+}

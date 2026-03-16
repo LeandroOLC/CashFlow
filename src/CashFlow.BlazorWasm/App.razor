@@ -1,0 +1,18 @@
+@using Microsoft.AspNetCore.Components.Routing
+
+<Router AppAssembly="typeof(App).Assembly">
+    <Found Context="routeData">
+        <AuthGuard CurrentRoute="routeData" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="typeof(MainLayout)">
+            <MudContainer MaxWidth="MaxWidth.Medium" Class="mt-16 text-center">
+                <MudText Typo="Typo.h3" Color="Color.Primary">404</MudText>
+                <MudText Typo="Typo.h6" Class="mb-4">Página não encontrada</MudText>
+                <MudButton Href="/" Variant="Variant.Filled" Color="Color.Primary">
+                    Voltar ao início
+                </MudButton>
+            </MudContainer>
+        </LayoutView>
+    </NotFound>
+</Router>

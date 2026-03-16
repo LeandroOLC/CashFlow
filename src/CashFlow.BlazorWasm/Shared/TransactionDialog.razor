@@ -1,0 +1,138 @@
+@inject ITransactionService TransactionSvc
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@(IsEdit ? Icons.Material.Filled.Edit : Icons.Material.Filled.Add)"
+                     Class="mr-2" Style="vertical-align:middle" />
+            @(IsEdit ? "Editar Lançamento" : "Novo Lançamento")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudSelect @bind-Value="_type" Label="Tipo *" Variant="Variant.Outlined" FullWidth="true">
+                    <MudSelectItem Value="@("Credit")">
+                        <div class="d-flex align-center gap-2">
+                            <MudIcon Icon="@Icons.Material.Filled.ArrowUpward" Color="Color.Success" Size="Size.Small" />
+                            Receita (Crédito)
+                        </div>
+                    </MudSelectItem>
+                    <MudSelectItem Value="@("Debit")">
+                        <div class="d-flex align-center gap-2">
+                            <MudIcon Icon="@Icons.Material.Filled.ArrowDownward" Color="Color.Error" Size="Size.Small" />
+                            Despesa (Débito)
+                        </div>
+                    </MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12">
+                <MudNumericField @bind-Value="_amount" Label="Valor *" Variant="Variant.Outlined"
+                                 FullWidth="true" Min="0.01m" Format="F2"
+                                 Adornment="Adornment.Start" AdornmentText="R$"
+                                 Culture="@_ptBR" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudDatePicker @bind-Date="_date" Label="Data *" Variant="Variant.Outlined"
+                               FullWidth="true" DateFormat="dd/MM/yyyy" Culture="_ptBR"
+                               MaxDate="DateTime.Today" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_description" Label="Descrição *" Variant="Variant.Outlined"
+                              FullWidth="true" MaxLength="500"
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Notes" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudSelect @bind-Value="_categoryId" Label="Categoria" Variant="Variant.Outlined"
+                           FullWidth="true" Clearable="true">
+                    @foreach (var (id, name) in Categories)
+                    {
+                        <MudSelectItem Value="@((Guid?)id)">@name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+
+        @if (_error is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-3" Dense="true">@_error</MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Cancelar</MudButton>
+        <MudButton OnClick="SaveAsync" Variant="Variant.Filled"
+                   Color="@(_type == "Credit" ? Color.Success : Color.Error)"
+                   Disabled="_saving">
+            @if (_saving)
+            { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" /> }
+            @(IsEdit ? "Salvar" : "Criar")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public TransactionDto?            Transaction { get; set; }
+    [Parameter] public Dictionary<Guid, string>   Categories  { get; set; } = [];
+
+    private bool   IsEdit => Transaction is not null;
+    private string _type        = "Credit";
+    private decimal _amount     = 0m;
+    private DateTime? _date     = DateTime.Today;
+    private string _description = string.Empty;
+    private Guid?  _categoryId;
+    private bool   _saving;
+    private string? _error;
+
+    private static readonly System.Globalization.CultureInfo _ptBR =
+        System.Globalization.CultureInfo.GetCultureInfo("pt-BR");
+
+    protected override void OnParametersSet()
+    {
+        if (Transaction is not null)
+        {
+            _type        = Transaction.Type;
+            _amount      = Transaction.Amount;
+            _date        = Transaction.Date;
+            _description = Transaction.Description;
+            _categoryId  = Transaction.CategoryId;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task SaveAsync()
+    {
+        _error = null;
+        if (string.IsNullOrWhiteSpace(_description))
+        { _error = "Descrição é obrigatória."; return; }
+        if (_amount <= 0)
+        { _error = "Valor deve ser positivo."; return; }
+        if (_date is null)
+        { _error = "Data é obrigatória."; return; }
+
+        _saving = true;
+
+        (bool ok, string? err) result;
+
+        if (IsEdit)
+            result = await TransactionSvc.UpdateAsync(Transaction!.Id,
+                new UpdateTransactionRequest(_amount, _type, _date.Value, _description, _categoryId));
+        else
+            result = await TransactionSvc.CreateAsync(
+                new CreateTransactionRequest(_amount, _type, _date.Value, _description, _categoryId));
+
+        _saving = false;
+
+        if (result.ok)
+        {
+            Snackbar.Add(IsEdit ? "Lançamento atualizado!" : "Lançamento criado!", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        else
+        {
+            _error = result.err ?? "Erro inesperado.";
+        }
+    }
+}

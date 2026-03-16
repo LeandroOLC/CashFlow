@@ -1,0 +1,64 @@
+@page "/categories"
+@inject ITransactionService TransactionSvc
+
+<div class="mb-1">
+    <MudText Typo="Typo.h5"><b>Categorias</b></MudText>
+    <MudText Typo="Typo.body2" Color="Color.Secondary">Categorias disponíveis para lançamentos</MudText>
+</div>
+
+@if (_loading)
+{
+    <div class="d-flex justify-center mt-12">
+        <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+    </div>
+}
+else
+{
+    <MudGrid>
+        @foreach (var cat in _categories)
+        {
+            <MudItem xs="12" sm="6" md="4" lg="3">
+                <MudPaper Elevation="2" Class="pa-4 rounded-lg d-flex align-center gap-3"
+                          Style="border-left:4px solid #1565C0">
+                    <MudAvatar Color="Color.Primary" Size="Size.Medium">
+                        <MudIcon Icon="@Icons.Material.Filled.Label" />
+                    </MudAvatar>
+                    <div>
+                        <MudText Typo="Typo.subtitle2"><b>@cat.Name</b></MudText>
+                        @if (!string.IsNullOrEmpty(cat.Description))
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@cat.Description</MudText>
+                        }
+                    </div>
+                    <MudSpacer />
+                    <MudChip T="string" Size="Size.Small"
+                             Color="@(cat.IsActive ? Color.Success : Color.Default)">
+                        @(cat.IsActive ? "Ativa" : "Inativa")
+                    </MudChip>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+
+    @if (!_categories.Any())
+    {
+        <div class="d-flex flex-column align-center mt-12">
+            <MudIcon Icon="@Icons.Material.Filled.Category" Size="Size.Large" Color="Color.Secondary" />
+            <MudText Class="mt-2" Color="Color.Secondary">Nenhuma categoria encontrada</MudText>
+        </div>
+    }
+}
+
+@code {
+    private bool _loading = true;
+    private List<TransactionCategoryDto> _categories = [];
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var result = await TransactionSvc.GetCategoriesAsync();
+        _categories = result.OrderBy(c => c.Name).ToList();
+        _loading = false;
+        StateHasChanged();
+    }
+}

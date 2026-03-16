@@ -1,0 +1,237 @@
+@page "/transactions"
+@inject ITransactionService TransactionSvc
+@inject IDialogService      DialogSvc
+@inject ISnackbar           Snackbar
+
+<div class="d-flex justify-space-between align-center mb-1">
+    <div>
+        <MudText Typo="Typo.h5"><b>Lançamentos</b></MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">Gerencie receitas e despesas</MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Add"
+               OnClick="OpenCreateAsync" Disabled="!_ready">
+        Novo Lançamento
+    </MudButton>
+</div>
+
+<!-- Filtros -->
+<MudPaper Elevation="1" Class="pa-4 mb-4 rounded-lg">
+    <MudGrid>
+        <MudItem xs="12" sm="3">
+            <MudDatePicker @bind-Date="_start" Label="Data inicial" Variant="Variant.Outlined"
+                           DateFormat="dd/MM/yyyy" Culture="_ptBR" />
+        </MudItem>
+        <MudItem xs="12" sm="3">
+            <MudDatePicker @bind-Date="_end" Label="Data final" Variant="Variant.Outlined"
+                           DateFormat="dd/MM/yyyy" Culture="_ptBR" />
+        </MudItem>
+        <MudItem xs="12" sm="3">
+            <MudSelect @bind-Value="_typeFilter" Label="Tipo" Variant="Variant.Outlined">
+                <MudSelectItem Value="@("All")">Todos</MudSelectItem>
+                <MudSelectItem Value="@("Credit")">Receitas</MudSelectItem>
+                <MudSelectItem Value="@("Debit")">Despesas</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="3" Class="d-flex align-end gap-2">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                       StartIcon="@Icons.Material.Filled.Search"
+                       OnClick="SearchAsync" Disabled="!_ready">Filtrar</MudButton>
+            <MudTooltip Text="Limpar filtros">
+                <MudIconButton Icon="@Icons.Material.Filled.FilterAltOff"
+                               Variant="Variant.Outlined" OnClick="ClearAsync" Disabled="!_ready" />
+            </MudTooltip>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+<!-- Resumo rápido -->
+@if (_data is not null && _data.Items.Any())
+{
+    var credits = _data.Items.Where(t => t.Type == "Credit").Sum(t => t.Amount);
+    var debits  = _data.Items.Where(t => t.Type == "Debit").Sum(t => t.Amount);
+    <MudGrid Class="mb-4">
+        <MudItem xs="4">
+            <MudPaper Elevation="1" Class="pa-3 text-center rounded-lg" Style="border-top:3px solid #2E7D32">
+                <MudText Typo="Typo.overline">RECEITAS</MudText>
+                <MudText Typo="Typo.subtitle1" Style="color:#2E7D32;font-weight:700">
+                    @credits.ToString("C2", _ptBR)
+                </MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="4">
+            <MudPaper Elevation="1" Class="pa-3 text-center rounded-lg" Style="border-top:3px solid #C62828">
+                <MudText Typo="Typo.overline">DESPESAS</MudText>
+                <MudText Typo="Typo.subtitle1" Style="color:#C62828;font-weight:700">
+                    @debits.ToString("C2", _ptBR)
+                </MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="4">
+            <MudPaper Elevation="1" Class="pa-3 text-center rounded-lg"
+                      Style="@($"border-top:3px solid {(credits-debits >= 0 ? "#1565C0" : "#E65100")}")">
+                <MudText Typo="Typo.overline">TOTAL (@_data.TotalCount)</MudText>
+                <MudText Typo="Typo.subtitle1"
+                         Style="@($"font-weight:700;color:{(credits-debits >= 0 ? "#1565C0" : "#E65100")}")">
+                    @((credits - debits).ToString("C2", _ptBR))
+                </MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+
+<!-- Tabela -->
+<MudPaper Elevation="2" Class="rounded-lg">
+    @if (!_ready || _loading)
+    {
+        <div class="d-flex justify-center pa-10">
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+        </div>
+    }
+    else
+    {
+        <MudTable Items="_data?.Items ?? []" Dense="true" Hover="true" Elevation="0"
+                  Breakpoint="Breakpoint.Sm">
+            <HeaderContent>
+                <MudTh>Data</MudTh>
+                <MudTh>Descrição</MudTh>
+                <MudTh>Categoria</MudTh>
+                <MudTh>Tipo</MudTh>
+                <MudTh Style="text-align:right">Valor</MudTh>
+                <MudTh Style="text-align:center">Ações</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Data"><b>@context.Date.ToString("dd/MM/yyyy")</b></MudTd>
+                <MudTd DataLabel="Descrição">
+                    <MudTooltip Text="@context.Description">
+                        <MudText Style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                            @context.Description
+                        </MudText>
+                    </MudTooltip>
+                </MudTd>
+                <MudTd DataLabel="Categoria">
+                    @if (context.CategoryId.HasValue && _cats.TryGetValue(context.CategoryId.Value, out var cat))
+                    {
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined"
+                                 Color="Color.Default">@cat</MudChip>
+                    }
+                </MudTd>
+                <MudTd DataLabel="Tipo">
+                    <MudChip T="string" Size="Size.Small"
+                             Color="@(context.Type == "Credit" ? Color.Success : Color.Error)"
+                             Variant="Variant.Filled">
+                        <MudIcon Icon="@(context.Type == "Credit"
+                                       ? Icons.Material.Filled.ArrowUpward
+                                       : Icons.Material.Filled.ArrowDownward)"
+                                 Size="Size.Small" Class="mr-1" />
+                        @(context.Type == "Credit" ? "Receita" : "Despesa")
+                    </MudChip>
+                </MudTd>
+                <MudTd DataLabel="Valor" Style="text-align:right">
+                    <MudText Style="@($"font-weight:700;color:{(context.Type == "Credit" ? "#2E7D32" : "#C62828")}")">
+                        @(context.Type == "Credit" ? "+" : "-")@context.Amount.ToString("C2", _ptBR)
+                    </MudText>
+                </MudTd>
+                <MudTd DataLabel="Ações" Style="text-align:center">
+                    <MudTooltip Text="Editar">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                       Color="Color.Primary" OnClick="() => OpenEditAsync(context)" />
+                    </MudTooltip>
+                    <MudTooltip Text="Excluir">
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                       Color="Color.Error" OnClick="() => ConfirmDeleteAsync(context)" />
+                    </MudTooltip>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <div class="d-flex flex-column align-center pa-10">
+                    <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large"
+                             Color="Color.Secondary" />
+                    <MudText Typo="Typo.body1" Class="mt-2" Color="Color.Secondary">
+                        Nenhum lançamento encontrado
+                    </MudText>
+                </div>
+            </NoRecordsContent>
+        </MudTable>
+
+        @if (_data is not null && _data.TotalPages > 1)
+        {
+            <div class="d-flex justify-center pa-4">
+                <MudPagination Count="_data.TotalPages" Selected="_page"
+                               SelectedChanged="OnPageChangedAsync"
+                               Color="Color.Primary" BoundaryCount="1" MiddleCount="3" />
+            </div>
+        }
+    }
+</MudPaper>
+
+@code {
+    private bool   _ready;
+    private bool   _loading;
+    private PagedResponse<TransactionDto>? _data;
+    private Dictionary<Guid, string> _cats = [];
+    private int       _page       = 1;
+    private const int _pageSize   = 15;
+    private string    _typeFilter = "All";
+    private DateTime? _start;
+    private DateTime? _end;
+
+    private static readonly System.Globalization.CultureInfo _ptBR =
+        System.Globalization.CultureInfo.GetCultureInfo("pt-BR");
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        _ready = true;
+        var cats = await TransactionSvc.GetCategoriesAsync();
+        _cats = cats.ToDictionary(c => c.Id, c => c.Name);
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true; StateHasChanged();
+        _data = await TransactionSvc.GetPagedAsync(
+            _page, _pageSize, _start, _end,
+            _typeFilter == "All" ? null : _typeFilter);
+        _loading = false; StateHasChanged();
+    }
+
+    private async Task SearchAsync()      { _page = 1; await LoadAsync(); }
+    private async Task ClearAsync()       { _start = null; _end = null; _typeFilter = "All"; _page = 1; await LoadAsync(); }
+    private async Task OnPageChangedAsync(int p) { _page = p; await LoadAsync(); }
+
+    private async Task OpenCreateAsync()
+    {
+        var p = new DialogParameters<TransactionDialog> { { x => x.Categories, _cats } };
+        var d = await DialogSvc.ShowAsync<TransactionDialog>("", p,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true });
+        if (!(await d.Result)!.Canceled) await LoadAsync();
+    }
+
+    private async Task OpenEditAsync(TransactionDto t)
+    {
+        var p = new DialogParameters<TransactionDialog>
+        {
+            { x => x.Transaction, t },
+            { x => x.Categories, _cats }
+        };
+        var d = await DialogSvc.ShowAsync<TransactionDialog>("", p,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true });
+        if (!(await d.Result)!.Canceled) await LoadAsync();
+    }
+
+    private async Task ConfirmDeleteAsync(TransactionDto t)
+    {
+        var confirm = await DialogSvc.ShowMessageBox(
+            "Confirmar exclusão",
+            (MarkupString)$"Deseja excluir <b>{t.Description}</b>?",
+            yesText: "Excluir", cancelText: "Cancelar");
+
+        if (confirm != true) return;
+
+        var (ok, err) = await TransactionSvc.DeleteAsync(t.Id);
+        if (ok) { Snackbar.Add("Lançamento excluído.", Severity.Success); await LoadAsync(); }
+        else    Snackbar.Add(err ?? "Erro ao excluir.", Severity.Error);
+    }
+}
