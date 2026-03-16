@@ -1,6 +1,7 @@
 version: '3.9'
 
 services:
+
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: cashflow-sqlserver
@@ -41,19 +42,17 @@ services:
     networks:
       - cashflow-network
 
-
-  web:
+  # ── UI — Blazor WebAssembly ─────────────────────────────────────────────────
+  # O browser chama as APIs diretamente (WASM roda no cliente).
+  # Os ApiEndpoints devem apontar para as portas expostas no HOST (localhost),
+  # pois quem faz as chamadas é o browser do usuário, não o container.
+  blazor-wasm:
     build:
       context: .
       dockerfile: src/CashFlow.WebApp/Dockerfile
-    container_name: cashflow-web
+    container_name: cashflow-webapp
     ports:
-      - "5000:8080"
-    environment:
-      - ApiEndpoints__Auth=http://auth-service:8080
-      - ApiEndpoints__Transactions=http://transactions-service:8080
-      - ApiEndpoints__Consolidation=http://consolidation-service:8080
-      - ASPNETCORE_ENVIRONMENT=Production
+      - "5000:80"       # nginx escuta na 80 internamente
     depends_on:
       - auth-service
       - transactions-service

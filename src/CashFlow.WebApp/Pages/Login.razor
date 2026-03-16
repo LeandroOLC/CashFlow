@@ -1,4 +1,5 @@
 @page "/login"
+@layout EmptyLayout
 @inject IAuthService Auth
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
@@ -34,7 +35,9 @@
                    Size="Size.Large" OnClick="HandleLoginAsync" Disabled="_loading"
                    Style="border-radius:8px;padding:12px" Class="mb-4">
             @if (_loading)
-            { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
             <span>@(_loading ? "Entrando..." : "Entrar")</span>
         </MudButton>
 
@@ -46,18 +49,18 @@
 </MudContainer>
 
 @code {
-    private string _email    = string.Empty;
+    private string _email = string.Empty;
     private string _password = string.Empty;
-    private bool   _loading;
+    private bool _loading;
     private InputType _pwdType = InputType.Password;
-    private string    _pwdIcon = Icons.Material.Filled.VisibilityOff;
+    private string _pwdIcon = Icons.Material.Filled.VisibilityOff;
 
     private void TogglePwd()
     {
         if (_pwdType == InputType.Password)
-            { _pwdType = InputType.Text;     _pwdIcon = Icons.Material.Filled.Visibility; }
+        { _pwdType = InputType.Text; _pwdIcon = Icons.Material.Filled.Visibility; }
         else
-            { _pwdType = InputType.Password; _pwdIcon = Icons.Material.Filled.VisibilityOff; }
+        { _pwdType = InputType.Password; _pwdIcon = Icons.Material.Filled.VisibilityOff; }
     }
 
     private async Task HandleKeyDown(KeyboardEventArgs e)

@@ -3,10 +3,12 @@ using CashFlow.Auth.API.Data;
 using CashFlow.Auth.API.Models;
 using CashFlow.Auth.API.Services;
 using CashFlow.Shared.Extensions;
+using HealthChecks.SqlServer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
@@ -30,14 +32,16 @@ builder.Services.AddHsts(opts =>
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-                     ?? ["http://localhost:3000", "http://localhost:5173"];
+    ?? ["http://localhost:5000", "http://localhost:5163", "https://localhost:7297"];
 
 builder.Services.AddCors(opts =>
     opts.AddPolicy("CashFlowCors", policy =>
+    {
         policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowCredentials()));
+              .AllowCredentials();
+    }));
 
 // ── EF + Identity ─────────────────────────────────────────────────────────────
 builder.Services.AddDbContext<AuthDbContext>(opts =>
@@ -178,13 +182,15 @@ if (swaggerEnabled)
     app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "CashFlow Auth API v1"));
 }
 
+// UseCors DEVE vir antes de UseHttpsRedirection
+// O preflight OPTIONS precisa ser respondido antes de qualquer redirect
+app.UseCors("CashFlowCors");
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseHsts();
+    app.UseHttpsRedirection();
 }
-
-app.UseHttpsRedirection();
-app.UseCors("CashFlowCors");
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();

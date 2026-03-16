@@ -1,4 +1,7 @@
 @inherits LayoutComponentBase
+@inject IAuthService Auth
+@inject NavigationManager Nav
+
 
 <MudThemeProvider Theme="@_theme" IsDarkMode="_isDarkMode" />
 
@@ -8,14 +11,20 @@
 <MudSnackbarProvider />
 
 <MudLayout>
-    <MudAppBar Elevation="1">
-        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@DrawerToggle" />
-        <MudText Typo="Typo.h6" Class="ml-2">Application</MudText>
+    <MudAppBar Elevation="1" Color="Color.Primary" Dense="false">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit"
+                       Edge="Edge.Start" OnClick="() => _open = !_open" />
+        <MudText Typo="Typo.h6" Class="ml-2 d-none d-sm-flex">
+            <MudIcon Icon="@Icons.Material.Filled.AccountBalance" Class="mr-1" Style="vertical-align:middle" />
+            CashFlow
+        </MudText>
         <MudSpacer />
-        <MudIconButton Icon="@(DarkLightModeButtonIcon)" Color="Color.Inherit" OnClick="@DarkModeToggle" />
-        <MudLink Href="https://learn.microsoft.com/aspnet/core/" Target="_blank" Color="Color.Inherit" Underline="Underline.None">
-            About
-        </MudLink>
+        <MudChip T="string" Icon="@Icons.Material.Filled.Person" Color="Color.Secondary"
+                 Size="Size.Small" Class="d-none d-sm-flex">@_email</MudChip>
+        <MudTooltip Text="Sair">
+            <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit"
+                           OnClick="LogoutAsync" />
+        </MudTooltip>
     </MudAppBar>
 
     <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
@@ -30,6 +39,8 @@
 @code {
     private bool _drawerOpen = true;
     private bool _isDarkMode = true;
+    private bool _open = true;
+    private string _email = string.Empty;
 
     private MudTheme _theme = new()
     {
@@ -60,6 +71,14 @@
             LayoutProperties = new LayoutProperties()
         };
     }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        _email = await Auth.GetUserEmailAsync() ?? string.Empty;
+        StateHasChanged();
+    }
+
 
     private void DrawerToggle()
     {
@@ -116,5 +135,9 @@
         false => Icons.Material.Outlined.DarkMode,
     };
 
-    
+    private async Task LogoutAsync()
+    {
+        await Auth.LogoutAsync();
+        Nav.NavigateTo("/login", forceLoad: true);
+    }
 }

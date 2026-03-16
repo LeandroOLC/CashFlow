@@ -5,14 +5,18 @@ using CashFlow.Consolidation.API.Domain.Interfaces;
 using CashFlow.Consolidation.API.Infrastructure.Messaging;
 using CashFlow.Consolidation.API.Services;
 using CashFlow.Shared.Extensions;
+using HealthChecks.RabbitMQ;
+using HealthChecks.SqlServer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using RabbitMQ.Client;
 using Serilog;
+using Serilog.Events;
 using System.Text;
 using System.Threading.RateLimiting;
 
@@ -31,13 +35,16 @@ builder.Services.AddHsts(opts =>
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-                     ?? ["http://localhost:3000", "http://localhost:5173"];
+    ?? ["http://localhost:5000", "http://localhost:5163", "https://localhost:7297"];
+
 builder.Services.AddCors(opts =>
     opts.AddPolicy("CashFlowCors", policy =>
+    {
         policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowCredentials()));
+              .AllowCredentials();
+    }));
 
 // ── Compressão de resposta ────────────────────────────────────────────────────
 builder.Services.AddResponseCompression(opts =>
@@ -181,13 +188,15 @@ if (swaggerEnabled)
     app.UseSwaggerUI();
 }
 
+// UseCors DEVE vir antes de UseHttpsRedirection
+// O preflight OPTIONS precisa ser respondido antes de qualquer redirect
+app.UseCors("CashFlowCors");
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseHsts();
+    app.UseHttpsRedirection();
 }
-
-app.UseHttpsRedirection();
-app.UseCors("CashFlowCors");
 app.UseRateLimiter();
 app.UseOutputCache();
 app.UseAuthentication();
