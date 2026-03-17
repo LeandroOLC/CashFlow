@@ -4,45 +4,70 @@
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 
-<MudContainer MaxWidth="MaxWidth.False"
-              Style="min-height:100vh;background:linear-gradient(135deg,#1565C0,#0D47A1)"
-              Class="d-flex align-center justify-center">
-    <MudPaper Elevation="8" Class="pa-8" Style="width:100%;max-width:400px;border-radius:16px">
-        <div class="d-flex flex-column align-center mb-6">
-            <MudAvatar Style="background:#1565C0;width:60px;height:60px;margin-bottom:12px">
-                <MudIcon Icon="@Icons.Material.Filled.AccountBalance" Style="font-size:30px;color:white" />
-            </MudAvatar>
-            <MudText Typo="Typo.h5" Color="Color.Primary"><b>CashFlow</b></MudText>
-            <MudText Typo="Typo.body2" Color="Color.Secondary">Controle financeiro</MudText>
+<div style="min-height:100vh;background:#0F1624;display:flex;align-items:center;
+            justify-content:center;padding:16px;
+            background-image:radial-gradient(ellipse at 20% 50%,rgba(59,130,246,0.08) 0%,transparent 60%),
+                             radial-gradient(ellipse at 80% 20%,rgba(139,92,246,0.06) 0%,transparent 60%)">
+
+    <div style="width:100%;max-width:380px">
+
+        <!-- Logo -->
+        <div style="text-align:center;margin-bottom:40px">
+            <div style="width:56px;height:56px;border-radius:16px;
+                        background:linear-gradient(135deg,#3B82F6,#8B5CF6);
+                        display:inline-flex;align-items:center;justify-content:center;
+                        margin-bottom:16px;box-shadow:0 0 30px rgba(59,130,246,0.3)">
+                <MudIcon Icon="@Icons.Material.Filled.AccountBalance"
+                         Style="font-size:28px;color:white" />
+            </div>
+            <div style="font-size:26px;font-weight:800;color:#E2E8F0;letter-spacing:-0.5px">
+                Cash<span style="color:#60A5FA">Flow</span>
+            </div>
+            <div style="font-size:13px;color:rgba(226,232,240,0.4);margin-top:4px">
+                Controle financeiro inteligente
+            </div>
         </div>
 
-        <MudTextField @bind-Value="_email" Label="E-mail" Variant="Variant.Outlined"
-                      InputType="InputType.Email" FullWidth="true" Class="mb-3"
-                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Email"
-                      @onkeydown="OnKeyDown" />
+        <!-- Card -->
+        <div style="background:rgba(26,37,64,0.8);border:1px solid rgba(255,255,255,0.07);
+                    border-radius:20px;padding:32px;backdrop-filter:blur(10px)">
 
-        <MudTextField @bind-Value="_pwd" Label="Senha" Variant="Variant.Outlined"
-                      InputType="@_pwdType" FullWidth="true" Class="mb-5"
-                      Adornment="Adornment.End" AdornmentIcon="@_pwdIcon"
-                      OnAdornmentClick="TogglePwd"
-                      @onkeydown="OnKeyDown" />
+            <MudTextField @bind-Value="_email" Label="E-mail"
+                          Variant="Variant.Outlined" InputType="InputType.Email"
+                          FullWidth="true" Class="mb-3"
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Email"
+                          @onkeydown="OnKeyDown" />
 
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
-                   Size="Size.Large" OnClick="DoLoginAsync" Disabled="_busy" Class="mb-4">
-            @if (_busy) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
-            @(_busy ? "Entrando..." : "Entrar")
-        </MudButton>
+            <MudTextField @bind-Value="_pwd" Label="Senha"
+                          Variant="Variant.Outlined" InputType="@_pwdType"
+                          FullWidth="true" Class="mb-5"
+                          Adornment="Adornment.End" AdornmentIcon="@_pwdIcon"
+                          OnAdornmentClick="TogglePwd" @onkeydown="OnKeyDown" />
 
-        <MudText Align="Align.Center" Typo="Typo.body2">
-            Sem conta? <MudLink Href="/register" Color="Color.Primary"><b>Cadastre-se</b></MudLink>
-        </MudText>
-    </MudPaper>
-</MudContainer>
+            <MudButton Variant="Variant.Filled" FullWidth="true" Size="Size.Large"
+                       OnClick="DoLoginAsync" Disabled="_busy"
+                       Style="background:linear-gradient(135deg,#3B82F6,#6366F1);
+                              border-radius:12px;height:48px;font-weight:700;
+                              font-size:15px;text-transform:none;margin-bottom:20px;
+                              box-shadow:0 4px 20px rgba(59,130,246,0.35)">
+                @if (_busy)
+                { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                @(_busy ? "Entrando..." : "Entrar")
+            </MudButton>
+
+            <div style="text-align:center;font-size:13px;color:rgba(226,232,240,0.45)">
+                Sem conta?
+                <a href="/register" style="color:#60A5FA;font-weight:700;text-decoration:none">
+                    Cadastre-se
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
 
 @code {
-    private string    _email   = string.Empty;
-    private string    _pwd     = string.Empty;
-    private bool      _busy;
+    private string _email = string.Empty, _pwd = string.Empty;
+    private bool   _busy;
     private InputType _pwdType = InputType.Password;
     private string    _pwdIcon = Icons.Material.Filled.VisibilityOff;
 
@@ -51,7 +76,6 @@
         if (_pwdType == InputType.Password) { _pwdType = InputType.Text;     _pwdIcon = Icons.Material.Filled.Visibility; }
         else                                { _pwdType = InputType.Password; _pwdIcon = Icons.Material.Filled.VisibilityOff; }
     }
-
     private async Task OnKeyDown(KeyboardEventArgs e)
     { if (e.Key == "Enter") await DoLoginAsync(); }
 
@@ -59,11 +83,9 @@
     {
         if (string.IsNullOrWhiteSpace(_email) || string.IsNullOrWhiteSpace(_pwd))
         { Snackbar.Add("Preencha e-mail e senha.", Severity.Warning); return; }
-
         _busy = true;
         var (ok, err) = await Auth.LoginAsync(new LoginRequest(_email, _pwd));
         _busy = false;
-
         if (ok) Nav.NavigateTo("/", forceLoad: true);
         else    Snackbar.Add(err ?? "Credenciais inválidas.", Severity.Error);
     }

@@ -2,37 +2,54 @@
 @inject IAuthService Auth
 @inject NavigationManager Nav
 
-<MudThemeProvider Theme="_theme" />
+<MudThemeProvider Theme="_theme" IsDarkMode="true" />
 <MudPopoverProvider />
 <MudDialogProvider FullWidth="true" MaxWidth="MaxWidth.Small" />
 <MudSnackbarProvider />
 
 <MudLayout>
-    <MudAppBar Elevation="1" Color="Color.Primary">
+    <MudAppBar Elevation="0" Class="mud-appbar">
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit"
                        Edge="Edge.Start" OnClick="@(() => _open = !_open)" />
-        <MudText Typo="Typo.h6" Class="ml-2">
-            <MudIcon Icon="@Icons.Material.Filled.AccountBalance"
-                     Style="vertical-align:middle;margin-right:6px" />
-            CashFlow
-        </MudText>
+        <div class="d-flex align-center gap-2 ml-2">
+            <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#3B82F6,#8B5CF6);
+                        display:flex;align-items:center;justify-content:center">
+                <MudIcon Icon="@Icons.Material.Filled.AccountBalance"
+                         Style="font-size:18px;color:white" />
+            </div>
+            <MudText Typo="Typo.h6" Style="font-weight:800;color:#E2E8F0;letter-spacing:-0.3px">
+                Cash<span style="color:#60A5FA">Flow</span>
+            </MudText>
+        </div>
         <MudSpacer />
         @if (!string.IsNullOrEmpty(_email))
         {
-            <MudText Typo="Typo.body2" Class="mr-3 d-none d-sm-flex">@_email</MudText>
+            <div class="d-none d-sm-flex align-center gap-2 mr-3">
+                <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#3B82F6,#8B5CF6);
+                            display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:white">
+                    @_email[0].ToString().ToUpper()
+                </div>
+                <MudText Typo="Typo.body2" Style="color:rgba(226,232,240,0.7)">@_email</MudText>
+            </div>
         }
         <MudTooltip Text="Sair">
             <MudIconButton Icon="@Icons.Material.Filled.Logout"
-                           Color="Color.Inherit" OnClick="LogoutAsync" />
+                           Color="Color.Inherit" OnClick="LogoutAsync"
+                           Style="color:rgba(226,232,240,0.6)" />
         </MudTooltip>
     </MudAppBar>
 
     <MudDrawer @bind-Open="_open" ClipMode="DrawerClipMode.Always"
-               Elevation="2" Variant="DrawerVariant.Responsive" Width="220px">
-        <MudDrawerHeader>
-            <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mt-2"><b>MENU</b></MudText>
+               Elevation="0" Variant="DrawerVariant.Responsive" Width="230px">
+
+        <MudDrawerHeader Class="pt-5 pb-3 px-4">
+            <MudText Style="font-size:10px;font-weight:700;letter-spacing:1.5px;
+                            color:rgba(226,232,240,0.3);text-transform:uppercase">
+                Navegação
+            </MudText>
         </MudDrawerHeader>
-        <MudNavMenu>
+
+        <MudNavMenu Class="px-2">
             <MudNavLink Href="/" Match="NavLinkMatch.All"
                         Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
             <MudNavLink Href="/transactions"
@@ -41,12 +58,19 @@
                         Icon="@Icons.Material.Filled.BarChart">Consolidado</MudNavLink>
             <MudNavLink Href="/categories"
                         Icon="@Icons.Material.Filled.Category">Categorias</MudNavLink>
-            <MudDivider Class="my-2" />
-            <MudNavLink Icon="@Icons.Material.Filled.Logout" OnClick="LogoutAsync">Sair</MudNavLink>
         </MudNavMenu>
+
+        <div style="position:absolute;bottom:0;left:0;right:0;padding:16px;
+                    border-top:1px solid rgba(255,255,255,0.05)">
+            <MudNavMenu>
+                <MudNavLink Icon="@Icons.Material.Filled.Logout"
+                            OnClick="LogoutAsync"
+                            Style="color:rgba(248,113,113,0.7)!important">Sair</MudNavLink>
+            </MudNavMenu>
+        </div>
     </MudDrawer>
 
-    <MudMainContent>
+    <MudMainContent Style="background:#0F1624;min-height:100vh">
         <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="pa-4 pa-sm-6">
             @Body
         </MudContainer>
@@ -61,14 +85,25 @@
     {
         PaletteLight = new PaletteLight
         {
-            Primary          = "#1565C0",
-            PrimaryDarken    = "#003c8f",
-            PrimaryLighten   = "#5e92f3",
-            Secondary        = "#2E7D32",
-            AppbarBackground = "#1565C0",
-            Background       = "#F0F4F8",
-            Surface          = "#FFFFFF",
-            DrawerBackground = "#FAFAFA",
+            Primary          = "#3B82F6",
+            Secondary        = "#8B5CF6",
+            Background       = "#0F1624",
+            Surface          = "#1A2540",
+            AppbarBackground = "#0D1526",
+            DrawerBackground = "#0D1526",
+            TextPrimary      = "#E2E8F0",
+            TextSecondary    = "rgba(226,232,240,0.55)",
+        },
+        PaletteDark = new PaletteDark
+        {
+            Primary          = "#3B82F6",
+            Secondary        = "#8B5CF6",
+            Background       = "#0F1624",
+            Surface          = "#1A2540",
+            AppbarBackground = "#0D1526",
+            DrawerBackground = "#0D1526",
+            TextPrimary      = "#E2E8F0",
+            TextSecondary    = "rgba(226,232,240,0.55)",
         }
     };
 

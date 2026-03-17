@@ -1,130 +1,520 @@
 @page "/"
-@inject ITransactionService   TxSvc
+@inject ITransactionService TxSvc
 @inject IConsolidationService ConSvc
-@inject NavigationManager     Nav
+@inject NavigationManager Nav
 
-<MudText Typo="Typo.h5" Class="mb-1"><b>Dashboard</b></MudText>
-<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-5">
-    @DateTime.Today.ToString("MMMM/yyyy", _ptBR)
-</MudText>
+<!-- Header -->
+<div class="d-flex align-center justify-space-between mb-6">
+    <div>
+        <MudText Style="font-size:24px;font-weight:800;color:#E2E8F0;letter-spacing:-0.5px">
+            Dashboard
+        </MudText>
+        <MudText Style="font-size:13px;color:rgba(226,232,240,0.45);margin-top:2px">
+            @DateTime.Today.ToString("dddd, dd 'de' MMMM 'de' yyyy", _ptBR)
+        </MudText>
+    </div>
+    <MudButton Variant="Variant.Outlined" Size="Size.Small"
+               StartIcon="@Icons.Material.Filled.Refresh"
+               OnClick="ReloadAsync" Disabled="_loading"
+               Style="border-color:rgba(96,165,250,0.3);color:#60A5FA;border-radius:10px">
+        Atualizar
+    </MudButton>
+</div>
 
 @if (_loading)
 {
-    <div class="d-flex justify-center mt-16">
-        <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
-    </div>
+    <!-- Skeleton loading -->
+    <MudGrid Class="mb-6">
+        @for (var i = 0; i < 4; i++)
+        {
+            <MudItem xs="12" sm="6" md="3">
+                <div class="kpi-card" style="height:130px">
+                    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="12px" Width="60%" Class="mb-3" />
+                    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="32px" Width="80%" Class="mb-2" />
+                    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="10px" Width="40%" />
+                </div>
+            </MudItem>
+        }
+    </MudGrid>
+    <MudGrid>
+        <MudItem xs="12" md="8">
+            <div class="panel" style="height:320px">
+                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="100%" />
+            </div>
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <div class="panel" style="height:320px">
+                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="100%" />
+            </div>
+        </MudItem>
+    </MudGrid>
 }
 else
 {
+    <!-- ── KPI Cards ─────────────────────────────────────────────────────── -->
     <MudGrid Class="mb-6">
-        <MudItem xs="12" sm="6" md="3">
-            <MudPaper Elevation="2" Class="pa-5 rounded-lg" Style="border-left:4px solid #2E7D32">
-                <MudText Typo="Typo.overline" Color="Color.Success">RECEITAS (MÊS)</MudText>
-                <MudText Typo="Typo.h5" Style="color:#2E7D32;font-weight:700">@_credits.ToString("C2", _ptBR)</MudText>
-            </MudPaper>
+        <!-- Receitas -->
+        <MudItem xs="12" sm="6" md="3" Class="fade-up">
+            <div class="kpi-card credit">
+                <div class="d-flex align-center justify-space-between mb-3">
+                    <div class="kpi-icon credit">
+                        <MudIcon Icon="@Icons.Material.Filled.TrendingUp"
+                                 Style="color:#4ADE80;font-size:22px" />
+                    </div>
+                    @if (_prevCredits > 0)
+                    {
+                        var pct = ((_credits - _prevCredits) / _prevCredits * 100);
+                        <span class="kpi-trend @(pct >= 0 ? "up" : "down")">
+                            @(pct >= 0 ? "▲" : "▼") @Math.Abs(pct).ToString("0.0")%
+                        </span>
+                    }
+                </div>
+                <div class="kpi-label">Receitas (mês)</div>
+                <div class="kpi-value credit">@_credits.ToString("C2", _ptBR)</div>
+                <div class="kpi-sub">@_creditCount lançamentos</div>
+            </div>
         </MudItem>
-        <MudItem xs="12" sm="6" md="3">
-            <MudPaper Elevation="2" Class="pa-5 rounded-lg" Style="border-left:4px solid #C62828">
-                <MudText Typo="Typo.overline" Color="Color.Error">DESPESAS (MÊS)</MudText>
-                <MudText Typo="Typo.h5" Style="color:#C62828;font-weight:700">@_debits.ToString("C2", _ptBR)</MudText>
-            </MudPaper>
+
+        <!-- Despesas -->
+        <MudItem xs="12" sm="6" md="3" Class="fade-up">
+            <div class="kpi-card debit">
+                <div class="d-flex align-center justify-space-between mb-3">
+                    <div class="kpi-icon debit">
+                        <MudIcon Icon="@Icons.Material.Filled.TrendingDown"
+                                 Style="color:#F87171;font-size:22px" />
+                    </div>
+                    @if (_prevDebits > 0)
+                    {
+                        var pct = ((_debits - _prevDebits) / _prevDebits * 100);
+                        <span class="kpi-trend @(pct >= 0 ? "down" : "up")">
+                            @(pct >= 0 ? "▲" : "▼") @Math.Abs(pct).ToString("0.0")%
+                        </span>
+                    }
+                </div>
+                <div class="kpi-label">Despesas (mês)</div>
+                <div class="kpi-value debit">@_debits.ToString("C2", _ptBR)</div>
+                <div class="kpi-sub">@_debitCount lançamentos</div>
+            </div>
         </MudItem>
-        <MudItem xs="12" sm="6" md="3">
-            <MudPaper Elevation="2" Class="pa-5 rounded-lg"
-                      Style="@($"border-left:4px solid {(_balance >= 0 ? "#1565C0" : "#E65100")}")">
-                <MudText Typo="Typo.overline">SALDO DO MÊS</MudText>
-                <MudText Typo="Typo.h5"
-                         Style="@($"font-weight:700;color:{(_balance >= 0 ? "#1565C0" : "#E65100")}")">
+
+        <!-- Saldo -->
+        <MudItem xs="12" sm="6" md="3" Class="fade-up">
+            <div class="kpi-card balance">
+                <div class="d-flex align-center mb-3">
+                    <div class="kpi-icon balance">
+                        <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet"
+                                 Style="color:#60A5FA;font-size:22px" />
+                    </div>
+                </div>
+                <div class="kpi-label">Saldo do mês</div>
+                <div class="kpi-value balance @(_balance >= 0 ? "positive" : "negative")">
                     @_balance.ToString("C2", _ptBR)
-                </MudText>
-            </MudPaper>
+                </div>
+                <div class="kpi-sub">
+                    @if (_credits > 0)
+                    {
+                        var savingRate = (_balance / _credits * 100);
+                        @($"Taxa de economia: {savingRate:0.0}%")
+                    }
+                </div>
+            </div>
         </MudItem>
-        <MudItem xs="12" sm="6" md="3">
-            <MudPaper Elevation="2" Class="pa-5 rounded-lg" Style="border-left:4px solid #6A1B9A">
-                <MudText Typo="Typo.overline" Style="color:#6A1B9A">ÚLTIMO CONSOLIDADO</MudText>
+
+        <!-- Último consolidado -->
+        <MudItem xs="12" sm="6" md="3" Class="fade-up">
+            <div class="kpi-card latest">
+                <div class="d-flex align-center mb-3">
+                    <div class="kpi-icon latest">
+                        <MudIcon Icon="@Icons.Material.Filled.BarChart"
+                                 Style="color:#C084FC;font-size:22px" />
+                    </div>
+                </div>
+                <div class="kpi-label">Último consolidado</div>
                 @if (_latest is not null)
                 {
-                    <MudText Typo="Typo.h5" Style="font-weight:700;color:#6A1B9A">
-                        @_latest.FinalBalance.ToString("C2", _ptBR)
-                    </MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">@_latest.Date.ToString("dd/MM/yyyy")</MudText>
+                    <div class="kpi-value latest">@_latest.FinalBalance.ToString("C2", _ptBR)</div>
+                    <div class="kpi-sub">@_latest.Date.ToString("dd/MM/yyyy")</div>
                 }
-                else { <MudText Typo="Typo.h6" Color="Color.Secondary">—</MudText> }
-            </MudPaper>
+                else
+                {
+                    <div class="kpi-value latest" style="opacity:0.4">—</div>
+                }
+            </div>
         </MudItem>
     </MudGrid>
 
-    <MudPaper Elevation="2" Class="rounded-lg">
-        <div class="d-flex align-center justify-space-between pa-4 pb-2">
-            <MudText Typo="Typo.subtitle1"><b>Últimos Lançamentos</b></MudText>
-            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
+    <!-- ── Gráficos ──────────────────────────────────────────────────────── -->
+    <MudGrid Class="mb-6">
+
+        <!-- Barras — evolução diária do mês -->
+        <MudItem xs="12" md="8">
+            <div class="panel">
+                <div class="panel-header mb-1">
+                    <div>
+                        <div class="panel-title">Evolução Diária</div>
+                        <div class="panel-sub">Receitas vs Despesas — @DateTime.Today.ToString("MMMM yyyy", _ptBR)</div>
+                    </div>
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               EndIcon="@Icons.Material.Filled.ArrowForward"
+                               Style="color:#60A5FA;font-size:12px"
+                               OnClick='() => Nav.NavigateTo("/consolidation")'>Ver detalhes</MudButton>
+                </div>
+
+                <div class="chart-legend">
+                    <span><span class="legend-dot" style="background:#4ADE80"></span>Receitas</span>
+                    <span><span class="legend-dot" style="background:#F87171"></span>Despesas</span>
+                    <span><span class="legend-dot" style="background:#60A5FA;border-radius:2px"></span>Saldo</span>
+                </div>
+
+                <div class="chart-wrap">
+                    @if (_dailyBars.Count > 0)
+                    {
+                        var total = _dailyBars.Count;
+                        var barW = Math.Max(6, Math.Min(20, (560 - total * 3) / Math.Max(total, 1)));
+                        var gap = barW + 5;
+                        var svgW = Math.Max(total * gap + 48, 300);
+
+                        <div style="overflow-x:auto">
+                            <svg viewBox="0 0 @svgW 200" style="width:100%;max-height:220px"
+                                 xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <linearGradient id="gCredit" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stop-color="#4ADE80" />
+                                        <stop offset="100%" stop-color="#22C55E" stop-opacity="0.6" />
+                                    </linearGradient>
+                                    <linearGradient id="gDebit" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stop-color="#F87171" />
+                                        <stop offset="100%" stop-color="#EF4444" stop-opacity="0.6" />
+                                    </linearGradient>
+                                </defs>
+
+                                <!-- Grid lines (h=160) -->
+                                <line x1="0" y1="40" x2="@svgW" y2="40" stroke="rgba(255,255,255,0.04)" stroke-width="1" />
+                                <line x1="0" y1="80" x2="@svgW" y2="80" stroke="rgba(255,255,255,0.04)" stroke-width="1" />
+                                <line x1="0" y1="120" x2="@svgW" y2="120" stroke="rgba(255,255,255,0.04)" stroke-width="1" />
+                                <line x1="0" y1="160" x2="@svgW" y2="160" stroke="rgba(255,255,255,0.05)" stroke-width="1" />
+
+                                <!-- Bars -->
+                                @foreach (var seg in _chartSegments)
+                                {
+                                    <rect class="spark-bar"
+                                          x="@seg.CreditX" y="@seg.CreditY"
+                                          width="@seg.HalfW" height="@seg.CreditH"
+                                          fill="url(#gCredit)" rx="2">
+                                        <title>@seg.Label: Receita @seg.Credits.ToString("C2", _ptBR)</title>
+                                    </rect>
+                                    <rect class="spark-bar"
+                                          x="@seg.DebitX" y="@seg.DebitY"
+                                          width="@seg.HalfW" height="@seg.DebitH"
+                                          fill="url(#gDebit)" rx="2">
+                                        <title>@seg.Label: Despesa @seg.Debits.ToString("C2", _ptBR)</title>
+                                    </rect>
+                                    @if (seg.ShowLabel)
+                                    {
+                                        @((MarkupString)$"<text x=\"{seg.LabelX}\" y=\"{seg.LabelY}\" text-anchor=\"middle\" font-size=\"9\" fill=\"rgba(226,232,240,0.3)\">{seg.Label}</text>")
+                                    }
+                                }
+
+                                <!-- Saldo line -->
+                                <path d="@_chartLinePath" fill="none" stroke="#60A5FA" stroke-width="2"
+                                      stroke-linecap="round" stroke-linejoin="round"
+                                      style="filter:drop-shadow(0 0 4px #60A5FA66)" />
+                            </svg>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="d-flex flex-column align-center pa-8" style="opacity:0.3">
+                            <MudIcon Icon="@Icons.Material.Filled.BarChart" Style="font-size:48px" />
+                            <span style="font-size:13px;margin-top:8px">Sem dados no mês</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        </MudItem>
+
+        <!-- Donut — distribuição receita vs despesa -->
+        <MudItem xs="12" md="4">
+            <div class="panel" style="height:100%">
+                <div class="panel-header mb-2">
+                    <div>
+                        <div class="panel-title">Distribuição</div>
+                        <div class="panel-sub">Receitas vs Despesas</div>
+                    </div>
+                </div>
+                <div class="d-flex justify-center align-center" style="padding:16px 0">
+                    @{
+                        var total2 = _credits + _debits;
+                        var creditPct = total2 > 0 ? _credits / total2 * 100 : 50;
+                        var debitPct = total2 > 0 ? _debits / total2 * 100 : 50;
+                        var r = 70.0; var cx2 = 100.0; var cy2 = 100.0;
+                        var circ = 2 * Math.PI * r;
+                        var creditDash = circ * (double)creditPct / 100;
+                        var debitDash = circ * (double)debitPct / 100;
+                    }
+                    <svg viewBox="0 0 200 200" style="width:100%;max-width:200px"
+                         xmlns="http://www.w3.org/2000/svg">
+                        <!-- Track -->
+                        <circle cx="@cx2" cy="@cy2" r="@r"
+                                fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="24" />
+                        <!-- Debit arc -->
+                        <circle cx="@cx2" cy="@cy2" r="@r"
+                                fill="none" stroke="#F87171" stroke-width="24"
+                                stroke-dasharray="@($"{debitDash.ToString("0.0")} {circ.ToString("0.0")}")"
+                                stroke-dashoffset="@($"{(-creditDash).ToString("0.0")}")"
+                                transform="rotate(-90 @cx2 @cy2)"
+                                style="filter:drop-shadow(0 0 6px #F8717166)" />
+                        <!-- Credit arc -->
+                        <circle cx="@cx2" cy="@cy2" r="@r"
+                                fill="none" stroke="#4ADE80" stroke-width="24"
+                                stroke-dasharray="@($"{creditDash.ToString("0.0")} {circ.ToString("0.0")}")"
+                                stroke-dashoffset="0"
+                                transform="rotate(-90 @cx2 @cy2)"
+                                style="filter:drop-shadow(0 0 6px #4ADE8066)" />
+                        <!-- Center text -->
+                        <text x="@cx2" y="@(cy2 - 10)" text-anchor="middle"
+                              font-size="11" fill="rgba(226,232,240,0.45)" class="donut-center">SALDO</text>
+                        <text x="@cx2" y="@(cy2 + 10)" text-anchor="middle"
+                              font-size="15" font-weight="800"
+                              fill="@(_balance >= 0 ? "#60A5FA" : "#FB923C")" class="donut-center">
+                            @(_balance >= 0 ? "+" : "")@(_balance.ToString("C0", _ptBR))
+                        </text>
+                        <text x="@cx2" y="@(cy2 + 26)" text-anchor="middle"
+                              font-size="10" fill="rgba(226,232,240,0.3)" class="donut-center">do mês</text>
+                    </svg>
+                </div>
+                <!-- Legend -->
+                <div style="padding:0 24px 20px;display:flex;flex-direction:column;gap:10px">
+                    <div class="d-flex justify-space-between align-center">
+                        <div class="d-flex align-center gap-2">
+                            <div style="width:10px;height:10px;border-radius:50%;background:#4ADE80;flex-shrink:0"></div>
+                            <span style="font-size:13px;color:rgba(226,232,240,0.65)">Receitas</span>
+                        </div>
+                        <div class="d-flex align-center gap-2">
+                            <span style="font-size:13px;font-weight:700;color:#4ADE80">
+                                @_credits.ToString("C2", _ptBR)
+                            </span>
+                            <span style="font-size:11px;color:rgba(226,232,240,0.3)">
+                                @creditPct.ToString("0")%
+                            </span>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-space-between align-center">
+                        <div class="d-flex align-center gap-2">
+                            <div style="width:10px;height:10px;border-radius:50%;background:#F87171;flex-shrink:0"></div>
+                            <span style="font-size:13px;color:rgba(226,232,240,0.65)">Despesas</span>
+                        </div>
+                        <div class="d-flex align-center gap-2">
+                            <span style="font-size:13px;font-weight:700;color:#F87171">
+                                @_debits.ToString("C2", _ptBR)
+                            </span>
+                            <span style="font-size:11px;color:rgba(226,232,240,0.3)">
+                                @debitPct.ToString("0")%
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </MudItem>
+    </MudGrid>
+
+    <!-- ── Tabela de últimos lançamentos ─────────────────────────────────── -->
+    <div class="panel">
+        <div class="panel-header pb-2">
+            <div>
+                <div class="panel-title">Últimos Lançamentos</div>
+                <div class="panel-sub">@_recent.Count registros mais recentes</div>
+            </div>
+            <MudButton Variant="Variant.Text" Size="Size.Small"
                        EndIcon="@Icons.Material.Filled.ArrowForward"
+                       Style="color:#60A5FA;font-size:12px"
                        OnClick='() => Nav.NavigateTo("/transactions")'>Ver todos</MudButton>
         </div>
-        <MudTable Items="_recent" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm">
+        <MudTable Items="_recent" Dense="true" Hover="true" Elevation="0"
+                  Breakpoint="Breakpoint.Sm" Style="background:transparent">
             <HeaderContent>
-                <MudTh>Data</MudTh><MudTh>Descrição</MudTh><MudTh>Tipo</MudTh>
+                <MudTh>Data</MudTh>
+                <MudTh>Descrição</MudTh>
+                <MudTh>Tipo</MudTh>
                 <MudTh Style="text-align:right">Valor</MudTh>
             </HeaderContent>
             <RowTemplate>
-                <MudTd DataLabel="Data">@context.Date.ToString("dd/MM/yyyy")</MudTd>
+                <MudTd DataLabel="Data">
+                    <span style="font-size:13px;color:rgba(226,232,240,0.5)">
+                        @context.Date.ToString("dd/MM")
+                    </span>
+                </MudTd>
                 <MudTd DataLabel="Descrição">
-                    <MudText Style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
-                             Title="@context.Description">@context.Description</MudText>
+                    <MudTooltip Text="@context.Description">
+                        <span style="font-size:13px;max-width:220px;overflow:hidden;
+                            text-overflow:ellipsis;white-space:nowrap;display:block">
+                            @context.Description
+                        </span>
+                    </MudTooltip>
                 </MudTd>
                 <MudTd DataLabel="Tipo">
-                    <MudChip T="string" Size="Size.Small"
-                             Color="@(context.Type=="Credit" ? Color.Success : Color.Error)"
-                             Variant="Variant.Outlined">
-                        @(context.Type == "Credit" ? "Receita" : "Despesa")
-                    </MudChip>
+                    <span class="@(context.Type == "Credit" ? "tx-credit" : "tx-debit")"
+                          style="font-size:11px;font-weight:700;padding:3px 10px;
+                        border-radius:20px;display:inline-block">
+                        @(context.Type == "Credit" ? "↑ Receita" : "↓ Despesa")
+                    </span>
                 </MudTd>
                 <MudTd DataLabel="Valor" Style="text-align:right">
-                    <MudText Style="@($"font-weight:600;color:{(context.Type=="Credit"?"#2E7D32":"#C62828")}")">
-                        @(context.Type=="Credit"?"+":"-")@context.Amount.ToString("C2",_ptBR)
-                    </MudText>
+                    <span style="font-weight:700;font-size:14px;
+                        color:@(context.Type == "Credit" ? "#4ADE80" : "#F87171")">
+                        @(context.Type == "Credit" ? "+" : "-")@context.Amount.ToString("C2", _ptBR)
+                    </span>
                 </MudTd>
             </RowTemplate>
             <NoRecordsContent>
-                <MudText Align="Align.Center" Class="pa-6" Color="Color.Secondary">
-                    Nenhum lançamento encontrado
-                </MudText>
+                <div class="d-flex flex-column align-center pa-10" style="opacity:0.3">
+                    <MudIcon Icon="@Icons.Material.Filled.Inbox" Style="font-size:48px" />
+                    <span style="font-size:13px;margin-top:8px">Nenhum lançamento</span>
+                </div>
             </NoRecordsContent>
         </MudTable>
-    </MudPaper>
+    </div>
 }
 
 @code {
-    private bool   _loading = true;
-    private bool   _done;
-    private DailyBalanceDto?     _latest;
-    private List<TransactionDto> _recent  = [];
+    private bool _loading = true;
+    private bool _done;
+    private DailyBalanceDto? _latest;
+    private List<TransactionDto> _recent = [];
     private decimal _credits, _debits, _balance;
+    private decimal _prevCredits, _prevDebits;
+    private int _creditCount, _debitCount;
+    private List<DailyBar> _dailyBars = [];
 
     private static readonly System.Globalization.CultureInfo _ptBR =
         System.Globalization.CultureInfo.GetCultureInfo("pt-BR");
+
+    private record DailyBar(string Label, decimal Credits, decimal Debits);
+
+    // Pré-computado para o SVG — evita lógica C# dentro de blocos @{ } no markup
+    private record ChartSegment(
+        string Label,
+        decimal Credits, decimal Debits,
+        string CreditX, string CreditY, string HalfW, string CreditH,
+        string DebitX, string DebitY, string DebitH,
+        string LabelX, string LabelY,
+        bool ShowLabel);
+
+    private List<ChartSegment> _chartSegments = [];
+    private string _chartLinePath = string.Empty;
+
+    private void BuildChartData()
+    {
+        if (_dailyBars.Count == 0) { _chartSegments = []; _chartLinePath = string.Empty; return; }
+
+        const double h = 160.0;  // altura útil das barras (deixa margem no topo)
+
+        // maxVal = maior valor entre TODOS os créditos e débitos do período
+        var maxVal = (double)_dailyBars.Max(b => Math.Max(b.Credits, b.Debits));
+        if (maxVal <= 0) maxVal = 1;
+
+        // Linha de saldo: pode ser positiva ou negativa
+        // Precisamos de uma escala que acomode saldo = crédito - débito
+        var maxAbs = (double)_dailyBars
+            .Select(b => Math.Abs(b.Credits - b.Debits))
+            .Max();
+        var lineScale = maxAbs > 0 ? maxAbs : 1;
+
+        var barW = Math.Max(6, Math.Min(20, (560 - _dailyBars.Count * 3) / _dailyBars.Count));
+        var gap = barW + 5;
+        var halfW = (barW / 2.0).ToString("0.0");
+        var midY = h / 2.0;   // linha do zero para o saldo
+        var pts = new System.Text.StringBuilder();
+        var segs = new List<ChartSegment>();
+
+        for (var i = 0; i < _dailyBars.Count; i++)
+        {
+            var bar = _dailyBars[i];
+            var x = i * gap + 24;
+            var cx = x + barW / 2.0;
+
+            // Barras crescem de baixo para cima — mínimo 2px para ficarem visíveis
+            var cH = bar.Credits > 0 ? Math.Max(2.0, (double)bar.Credits / maxVal * h) : 0;
+            var dH = bar.Debits > 0 ? Math.Max(2.0, (double)bar.Debits / maxVal * h) : 0;
+
+            // Linha de saldo: centralizada em midY, positivo sobe, negativo desce
+            var saldo = (double)(bar.Credits - bar.Debits);
+            var sy = midY - (saldo / lineScale * (midY - 10));
+            // Clamp para não sair do SVG
+            sy = Math.Max(5, Math.Min(h - 5, sy));
+
+            if (i == 0) pts.Append($"M{cx:0.0},{sy:0.0}");
+            else pts.Append($" L{cx:0.0},{sy:0.0}");
+
+            segs.Add(new ChartSegment(
+                bar.Label, bar.Credits, bar.Debits,
+                // Credit bar: começa na base (h) e cresce para cima
+                x.ToString("0"), (h - cH).ToString("0.0"),
+                halfW, cH.ToString("0.0"),
+                // Debit bar: ao lado direito da credit bar
+                (x + barW / 2.0).ToString("0.0"), (h - dH).ToString("0.0"),
+                dH.ToString("0.0"),
+                // Label
+                cx.ToString("0.0"), (h + 16).ToString("0"),
+                i % 5 == 0 || i == _dailyBars.Count - 1));
+        }
+
+        _chartSegments = segs;
+        _chartLinePath = pts.ToString();
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender || _done) return;
         _done = true;
+        await LoadAsync();
+    }
 
-        var now   = DateTime.Today;
-        var first = new DateTime(now.Year, now.Month, 1);
-        var last  = first.AddMonths(1).AddDays(-1);
+    private async Task ReloadAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        var now = DateTime.Today;
+        var firstDay = new DateTime(now.Year, now.Month, 1);
+        var lastDay = firstDay.AddMonths(1).AddDays(-1);
+        var prevFirst = firstDay.AddMonths(-1);
+        var prevLast = firstDay.AddDays(-1);
 
         var t1 = ConSvc.GetLatestAsync();
-        var t2 = ConSvc.GetByPeriodAsync(first, last, 1, 31);
-        var t3 = TxSvc.GetPagedAsync(1, 8);
-        await Task.WhenAll(t1, t2, t3);
+        var t2 = ConSvc.GetByPeriodAsync(firstDay, lastDay, 1, 31);
+        var t3 = TxSvc.GetPagedAsync(1, 10);
+        var t4 = ConSvc.GetByPeriodAsync(prevFirst, prevLast, 1, 31);
 
-        _latest  = t1.Result;
-        var per  = t2.Result?.Items ?? [];
-        _credits = per.Sum(b => b.TotalCredits);
-        _debits  = per.Sum(b => b.TotalDebits);
+        await Task.WhenAll(t1, t2, t3, t4);
+
+        _latest = t1.Result;
+
+        var period = t2.Result?.Items?.ToList() ?? [];
+        _credits = period.Sum(b => b.TotalCredits);
+        _debits = period.Sum(b => b.TotalDebits);
         _balance = _credits - _debits;
-        _recent  = t3.Result?.Items.ToList() ?? [];
 
+        var prevPeriod = t4.Result?.Items?.ToList() ?? [];
+        _prevCredits = prevPeriod.Sum(b => b.TotalCredits);
+        _prevDebits = prevPeriod.Sum(b => b.TotalDebits);
+
+        var all = t3.Result?.Items?.ToList() ?? [];
+        _recent = all;
+        _creditCount = all.Count(t => t.Type == "Credit");
+        _debitCount = all.Count(t => t.Type == "Debit");
+
+        // Barras: agrega por dia usando os dados de consolidação do período
+        _dailyBars = period
+            .OrderBy(b => b.Date)
+            .Select(b => new DailyBar(b.Date.Day.ToString(), b.TotalCredits, b.TotalDebits))
+            .ToList();
+
+        BuildChartData();
         _loading = false;
         StateHasChanged();
     }
