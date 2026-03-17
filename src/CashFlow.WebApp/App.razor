@@ -1,6 +1,20 @@
-﻿<Router AppAssembly="@typeof(App).Assembly" NotFoundPage="typeof(Pages.NotFound)">
+@using Microsoft.AspNetCore.Components.Routing
+@using CashFlow.WebApp.Layout
+@using CashFlow.WebApp.Shared
+
+<Router AppAssembly="typeof(App).Assembly">
     <Found Context="routeData">
-        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)"/>
-        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        <AuthGuard CurrentRoute="routeData" />
     </Found>
+    <NotFound>
+        <LayoutView Layout="typeof(MainLayout)">
+            <MudContainer MaxWidth="MaxWidth.Small" Class="mt-16 text-center">
+                <MudText Typo="Typo.h2" Color="Color.Primary">404</MudText>
+                <MudText Typo="Typo.h6" Class="mb-4" Color="Color.Secondary">Página não encontrada</MudText>
+                <MudButton Href="/" Variant="Variant.Filled" Color="Color.Primary">
+                    Voltar ao início
+                </MudButton>
+            </MudContainer>
+        </LayoutView>
+    </NotFound>
 </Router>

@@ -2,75 +2,75 @@
 @inject IAuthService Auth
 @inject NavigationManager Nav
 
-
-<MudThemeProvider Theme="@_theme" IsDarkMode="_isDarkMode" />
-
-<MudThemeProvider />
+<MudThemeProvider Theme="_theme" />
 <MudPopoverProvider />
-<MudDialogProvider />
+<MudDialogProvider FullWidth="true" MaxWidth="MaxWidth.Small" />
 <MudSnackbarProvider />
 
 <MudLayout>
-    <MudAppBar Elevation="1" Color="Color.Primary" Dense="false">
+    <MudAppBar Elevation="1" Color="Color.Primary">
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit"
-                       Edge="Edge.Start" OnClick="() => _open = !_open" />
-        <MudText Typo="Typo.h6" Class="ml-2 d-none d-sm-flex">
-            <MudIcon Icon="@Icons.Material.Filled.AccountBalance" Class="mr-1" Style="vertical-align:middle" />
+                       Edge="Edge.Start" OnClick="@(() => _open = !_open)" />
+        <MudText Typo="Typo.h6" Class="ml-2">
+            <MudIcon Icon="@Icons.Material.Filled.AccountBalance"
+                     Style="vertical-align:middle;margin-right:6px" />
             CashFlow
         </MudText>
         <MudSpacer />
-        <MudChip T="string" Icon="@Icons.Material.Filled.Person" Color="Color.Secondary"
-                 Size="Size.Small" Class="d-none d-sm-flex">@_email</MudChip>
+        @if (!string.IsNullOrEmpty(_email))
+        {
+            <MudText Typo="Typo.body2" Class="mr-3 d-none d-sm-flex">@_email</MudText>
+        }
         <MudTooltip Text="Sair">
-            <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit"
-                           OnClick="LogoutAsync" />
+            <MudIconButton Icon="@Icons.Material.Filled.Logout"
+                           Color="Color.Inherit" OnClick="LogoutAsync" />
         </MudTooltip>
     </MudAppBar>
 
-    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
-        <NavMenu />
+    <MudDrawer @bind-Open="_open" ClipMode="DrawerClipMode.Always"
+               Elevation="2" Variant="DrawerVariant.Responsive" Width="220px">
+        <MudDrawerHeader>
+            <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mt-2"><b>MENU</b></MudText>
+        </MudDrawerHeader>
+        <MudNavMenu>
+            <MudNavLink Href="/" Match="NavLinkMatch.All"
+                        Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
+            <MudNavLink Href="/transactions"
+                        Icon="@Icons.Material.Filled.SwapHoriz">Lançamentos</MudNavLink>
+            <MudNavLink Href="/consolidation"
+                        Icon="@Icons.Material.Filled.BarChart">Consolidado</MudNavLink>
+            <MudNavLink Href="/categories"
+                        Icon="@Icons.Material.Filled.Category">Categorias</MudNavLink>
+            <MudDivider Class="my-2" />
+            <MudNavLink Icon="@Icons.Material.Filled.Logout" OnClick="LogoutAsync">Sair</MudNavLink>
+        </MudNavMenu>
     </MudDrawer>
 
-    <MudMainContent Class="pt-16 pa-4">
-        @Body
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="pa-4 pa-sm-6">
+            @Body
+        </MudContainer>
     </MudMainContent>
 </MudLayout>
 
 @code {
-    private bool _drawerOpen = true;
-    private bool _isDarkMode = true;
-    private bool _open = true;
+    private bool   _open  = true;
     private string _email = string.Empty;
 
-    private MudTheme _theme = new()
+    private readonly MudTheme _theme = new()
     {
         PaletteLight = new PaletteLight
         {
-            Primary = "#1565C0",
-            PrimaryDarken = "#003c8f",
-            PrimaryLighten = "#5e92f3",
-            Secondary = "#2E7D32",
-            SecondaryDarken = "#005005",
-            SecondaryLighten = "#60ad5e",
+            Primary          = "#1565C0",
+            PrimaryDarken    = "#003c8f",
+            PrimaryLighten   = "#5e92f3",
+            Secondary        = "#2E7D32",
             AppbarBackground = "#1565C0",
-            Background = "#F0F4F8",
-            Surface = "#FFFFFF",
+            Background       = "#F0F4F8",
+            Surface          = "#FFFFFF",
             DrawerBackground = "#FAFAFA",
-            DrawerText = "#212121",
         }
     };
-
-    protected override void OnInitialized()
-    {
-        base.OnInitialized();
-
-        _theme = new()
-        {
-            PaletteLight = _lightPalette,
-            PaletteDark = _darkPalette,
-            LayoutProperties = new LayoutProperties()
-        };
-    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -78,62 +78,6 @@
         _email = await Auth.GetUserEmailAsync() ?? string.Empty;
         StateHasChanged();
     }
-
-
-    private void DrawerToggle()
-    {
-        _drawerOpen = !_drawerOpen;
-    }
-
-    private void DarkModeToggle()
-    {
-        _isDarkMode = !_isDarkMode;
-    }
-
-    private readonly PaletteLight _lightPalette = new()
-    {
-        Black = "#110e2d",
-        AppbarText = "#424242",
-        AppbarBackground = "rgba(255,255,255,0.8)",
-        DrawerBackground = "#ffffff",
-        GrayLight = "#e8e8e8",
-        GrayLighter = "#f9f9f9",
-    };
-
-    private readonly PaletteDark _darkPalette = new()
-    {
-        Primary = "#7e6fff",
-        Surface = "#1e1e2d",
-        Background = "#1a1a27",
-        BackgroundGray = "#151521",
-        AppbarText = "#92929f",
-        AppbarBackground = "rgba(26,26,39,0.8)",
-        DrawerBackground = "#1a1a27",
-        ActionDefault = "#74718e",
-        ActionDisabled = "#9999994d",
-        ActionDisabledBackground = "#605f6d4d",
-        TextPrimary = "#b2b0bf",
-        TextSecondary = "#92929f",
-        TextDisabled = "#ffffff33",
-        DrawerIcon = "#92929f",
-        DrawerText = "#92929f",
-        GrayLight = "#2a2833",
-        GrayLighter = "#1e1e2d",
-        Info = "#4a86ff",
-        Success = "#3dcb6c",
-        Warning = "#ffb545",
-        Error = "#ff3f5f",
-        LinesDefault = "#33323e",
-        TableLines = "#33323e",
-        Divider = "#292838",
-        OverlayLight = "#1e1e2d80",
-    };
-
-    public string DarkLightModeButtonIcon => _isDarkMode switch
-    {
-        true => Icons.Material.Rounded.AutoMode,
-        false => Icons.Material.Outlined.DarkMode,
-    };
 
     private async Task LogoutAsync()
     {

@@ -14,55 +14,51 @@ public interface ITransactionService
     Task<IEnumerable<TransactionCategoryDto>> GetCategoriesAsync();
 }
 
-public class TransactionService(
-    IHttpClientFactory factory,
-    IAuthService auth) : ITransactionService
+public class TransactionService(HttpClient http, IAuthService auth) : ITransactionService
 {
-    private async Task<HttpClient> GetHttpAsync()
+    private async Task AuthAsync()
     {
-        var http = factory.CreateClient("transactions");
         var token = await auth.GetTokenAsync();
         if (!string.IsNullOrEmpty(token))
             http.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Bearer", token);
-        return http;
     }
 
     public async Task<PagedResponse<TransactionDto>?> GetPagedAsync(
         int page, int pageSize,
         DateTime? start = null, DateTime? end = null, string? type = null)
     {
-        var http = await GetHttpAsync();
-        var url = $"/api/v1/transactions?page={page}&pageSize={pageSize}";
-        if (start.HasValue) url += $"&startDate={start:yyyy-MM-dd}";
-        if (end.HasValue) url += $"&endDate={end:yyyy-MM-dd}";
-        if (!string.IsNullOrEmpty(type) && type != "All") url += $"&type={type}";
         try
         {
+            await AuthAsync();
+            var url = $"api/v1/transactions?page={page}&pageSize={pageSize}";
+            if (start.HasValue) url += $"&startDate={start:yyyy-MM-dd}";
+            if (end.HasValue)   url += $"&endDate={end:yyyy-MM-dd}";
+            if (!string.IsNullOrEmpty(type) && type != "All") url += $"&type={type}";
             var r = await http.GetFromJsonAsync<ApiResponse<PagedResponse<TransactionDto>>>(url);
             return r?.Data;
         }
-        catch { return null; }
+        catch ( Exception ex ){ return null; }
     }
 
     public async Task<IEnumerable<TransactionCategoryDto>> GetCategoriesAsync()
     {
-        var http = await GetHttpAsync();
         try
         {
+            await AuthAsync();
             var r = await http.GetFromJsonAsync<ApiResponse<IEnumerable<TransactionCategoryDto>>>(
-                "/api/v1/transaction-categories");
+                "api/v1/transaction-categories");
             return r?.Data ?? [];
         }
         catch { return []; }
     }
 
-    public async Task<(bool Success, string? Error)> CreateAsync(CreateTransactionRequest request)
+    public async Task<(bool Success, string? Error)> CreateAsync(CreateTransactionRequest req)
     {
-        var http = await GetHttpAsync();
         try
         {
-            var resp = await http.PostAsJsonAsync("/api/v1/transactions", request);
+            await AuthAsync();
+            var resp = await http.PostAsJsonAsync("api/v1/transactions", req);
             if (resp.IsSuccessStatusCode) return (true, null);
             var r = await resp.Content.ReadFromJsonAsync<ApiResponse<string>>();
             return (false, r?.Message ?? "Erro ao criar.");
@@ -70,12 +66,12 @@ public class TransactionService(
         catch (Exception ex) { return (false, ex.Message); }
     }
 
-    public async Task<(bool Success, string? Error)> UpdateAsync(Guid id, UpdateTransactionRequest request)
+    public async Task<(bool Success, string? Error)> UpdateAsync(Guid id, UpdateTransactionRequest req)
     {
-        var http = await GetHttpAsync();
         try
         {
-            var resp = await http.PutAsJsonAsync($"/api/v1/transactions/{id}", request);
+            await AuthAsync();
+            var resp = await http.PutAsJsonAsync($"api/v1/transactions/{id}", req);
             if (resp.IsSuccessStatusCode) return (true, null);
             var r = await resp.Content.ReadFromJsonAsync<ApiResponse<string>>();
             return (false, r?.Message ?? "Erro ao atualizar.");
@@ -85,10 +81,10 @@ public class TransactionService(
 
     public async Task<(bool Success, string? Error)> DeleteAsync(Guid id)
     {
-        var http = await GetHttpAsync();
         try
         {
-            var resp = await http.DeleteAsync($"/api/v1/transactions/{id}");
+            await AuthAsync();
+            var resp = await http.DeleteAsync($"api/v1/transactions/{id}");
             return resp.IsSuccessStatusCode ? (true, null) : (false, "Erro ao excluir.");
         }
         catch (Exception ex) { return (false, ex.Message); }

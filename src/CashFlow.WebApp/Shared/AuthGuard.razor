@@ -13,9 +13,7 @@ else
 }
 
 @code {
-    // Renomeado de RouteData para CurrentRoute — evita conflito com o tipo RouteData
     [Parameter] public RouteData CurrentRoute { get; set; } = default!;
-
     private bool _checked;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -23,18 +21,17 @@ else
         if (!firstRender) return;
 
         var isAuth = await Auth.IsAuthenticatedAsync();
-        var path = new Uri(Nav.Uri).AbsolutePath.ToLower();
-        var isPublic = path is "/login" or "/register";
+        var path   = new Uri(Nav.Uri).AbsolutePath.ToLower().TrimEnd('/');
 
-        if (!isAuth && !isPublic)
+        if (!isAuth && path is not "/login" and not "/register")
         {
-            Nav.NavigateTo("/login");
+            Nav.NavigateTo("/login", replace: true);
             return;
         }
 
-        if (isAuth && isPublic)
+        if (isAuth && path is "/login" or "/register")
         {
-            Nav.NavigateTo("/");
+            Nav.NavigateTo("/", replace: true);
             return;
         }
 

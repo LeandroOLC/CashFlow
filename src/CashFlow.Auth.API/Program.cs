@@ -3,16 +3,13 @@ using CashFlow.Auth.API.Data;
 using CashFlow.Auth.API.Models;
 using CashFlow.Auth.API.Services;
 using CashFlow.Shared.Extensions;
-using HealthChecks.SqlServer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
-using Serilog.Events;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 

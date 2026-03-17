@@ -5,26 +5,20 @@ using CashFlow.Transactions.API.Data.Repositories;
 using CashFlow.Transactions.API.Domain.Interfaces;
 using CashFlow.Transactions.API.Infrastructure.Messaging;
 using CashFlow.Transactions.API.Services;
-using HealthChecks.RabbitMQ;
-using HealthChecks.SqlServer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using RabbitMQ.Client;
 using Serilog;
-using Serilog.Events;
 using System.Text;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSerilog(builder.Configuration, builder.Environment);
-builder.Services.AddResiliencePolicies();
-
 // ── HTTPS ─────────────────────────────────────────────────────────────────────
 builder.Services.AddHttpsRedirection(opts => opts.HttpsPort = 443);
 builder.Services.AddHsts(opts =>
@@ -34,17 +28,12 @@ builder.Services.AddHsts(opts =>
 });
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
-var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-    ?? ["http://localhost:5000", "http://localhost:5163", "https://localhost:7297"];
-
+// CORS aberto — permite qualquer origem, header e método
 builder.Services.AddCors(opts =>
     opts.AddPolicy("CashFlowCors", policy =>
-    {
-        policy.WithOrigins(allowedOrigins)
+        policy.AllowAnyOrigin()
               .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
-    }));
+              .AllowAnyMethod()));
 
 // ── Compressão de resposta ────────────────────────────────────────────────────
 builder.Services.AddResponseCompression(opts =>
@@ -58,11 +47,7 @@ builder.Services.AddResponseCompression(opts =>
 // Categorias são dados estáticos: TTL de 1h
 // Saldo diário: TTL de 30s (atualizado pelo consumer assíncrono)
 builder.Services.AddMemoryCache();
-builder.Services.AddOutputCache(opts =>
-{
-    opts.AddPolicy("categories", p => p.Expire(TimeSpan.FromHours(1)).Tag("categories"));
-    opts.AddPolicy("transactions", p => p.Expire(TimeSpan.FromSeconds(30)));
-});
+// OutputCache removido — estava mascarando erros e cacheando categorias indevidamente
 
 // ── Rate Limiting — SLA: máx 5% perda em pico de 50 req/s ───────────────────
 // Token bucket: 60 tokens (capacidade), 50 tokens/s (reposição) por IP
@@ -70,11 +55,11 @@ builder.Services.AddRateLimiter(opts =>
 {
     opts.AddTokenBucketLimiter("api", o =>
     {
-        o.TokenLimit = 60;
+        o.TokenLimit = 500;   // aumentado para não bloquear em dev/swagger
         o.ReplenishmentPeriod = TimeSpan.FromSeconds(1);
-        o.TokensPerPeriod = 50;
+        o.TokensPerPeriod = 200;
         o.AutoReplenishment = true;
-        o.QueueLimit = 5;
+        o.QueueLimit = 20;
         o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
     });
     opts.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -91,6 +76,15 @@ builder.Services.AddDbContext<TransactionDbContext>(opts =>
         sql => sql.CommandTimeout(30)));    // timeout de query: 30s
 
 // ── JWT ───────────────────────────────────────────────────────────────────────
+builder.Services.AddAuthorization(opts =>
+{
+    // Retorna 401 JSON em vez de redirect ao HTML de login
+    opts.DefaultPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
+        .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme)
+        .RequireAuthenticatedUser()
+        .Build();
+});
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(opts =>
     {
@@ -104,11 +98,37 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidAudience = builder.Configuration["Jwt:Audience"],
             ValidateLifetime = true,
-            ClockSkew = TimeSpan.Zero
+            ClockSkew = TimeSpan.FromMinutes(5)   // tolerância de 5min para clock skew
+        };
+        opts.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = ctx =>
+            {
+                var log = ctx.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+                log.LogWarning("JWT falhou: {Error}", ctx.Exception.Message);
+                return Task.CompletedTask;
+            },
+            OnChallenge = ctx =>
+            {
+                var log = ctx.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+                log.LogWarning("JWT challenge: {Error} {Desc}", ctx.Error, ctx.ErrorDescription);
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = ctx =>
+            {
+                var log = ctx.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+                log.LogDebug("JWT válido para: {User}",
+                    ctx.Principal?.FindFirst("sub")?.Value ?? "unknown");
+                return Task.CompletedTask;
+            }
         };
     });
 
 // ── RabbitMQ ──────────────────────────────────────────────────────────────────
+// A conexão é lazy — criada apenas na primeira publicação de evento.
+// Se o RabbitMQ não estiver disponível, o serviço sobe normalmente
+// e loga um warning ao tentar publicar (não quebra o fluxo de lançamentos).
+
 builder.Services.AddSingleton<IConnection>(_ =>
 {
     var factory = new ConnectionFactory
@@ -163,9 +183,8 @@ builder.Services.AddHealthChecks()
     .AddSqlServer(
         builder.Configuration.GetConnectionString("TransactionDb")!,
         name: "sqlserver", tags: ["ready", "db"])
-    .AddRabbitMQ(
-        sp => sp.GetRequiredService<IConnection>(),
-        name: "rabbitmq", tags: ["ready", "messaging"]);
+    ;
+// RabbitMQ health check removido — conexão é lazy e não bloqueia o startup
 
 var app = builder.Build();
 
@@ -203,7 +222,6 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 app.UseRateLimiter();
-app.UseOutputCache();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers().RequireRateLimiting("api");
